@@ -2,7 +2,7 @@
 
 const ACUMBAMAIL_CONFIG = {
   API_BASE_URL: 'https://acumbamail.com/api/1',
-  API_TOKEN: 'YOUR_ACUMBAMAIL_API_TOKEN', // Replace with your actual API token
+  API_TOKEN: '059824574374491b9557683a01acdf58', // Replace with your actual API token
   LIST_ID: 'YOUR_LIST_ID', // Optional: for contact management
   FROM_EMAIL: 'info@stargazevacations.com',
   FROM_NAME: 'StarGaze Vacations'
