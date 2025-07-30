@@ -2,7 +2,7 @@
 
 const ACUMBAMAIL_CONFIG = {
   API_BASE_URL: 'https://acumbamail.com/api/1',
-  API_TOKEN: '059824574374491b9557683a01acdf58', // Replace with your actual API token
+  API_TOKEN: '059824574374491b9557683a01acdf58', // Your actual API token
   LIST_ID: 'YOUR_LIST_ID', // Optional: for contact management
   FROM_EMAIL: 'info@stargazevacations.com',
   FROM_NAME: 'StarGaze Vacations'
@@ -12,6 +12,23 @@ const ACUMBAMAIL_CONFIG = {
 export const sendRefundRequestEmail = async (formData) => {
   try {
     console.log('📧 Sending refund request via Acumbamail:', formData);
+
+    // For development/testing - simulate successful API response
+    // Remove this block in production and use actual API call
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('🧪 Development mode: Simulating successful email delivery');
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+      
+      return {
+        success: true,
+        response: {
+          response: 'OK',
+          message_id: `SIM-${Date.now()}`
+        },
+        message: 'Refund request email sent successfully to StarGaze Vacations via Acumbamail (Simulated)',
+        messageId: `SIM-${Date.now()}`
+      };
+    }
 
     // Prepare email content
     const emailContent = {
@@ -75,11 +92,16 @@ export const sendRefundRequestEmail = async (formData) => {
       errorMessage = `Acumbamail error: ${error.message}`;
     }
 
+    // Use fallback method
+    console.log('⚠️ Using fallback method due to error');
+    const fallbackResult = storeRefundRequestLocally(formData);
+
     return {
       success: false,
       error: error,
       message: errorMessage,
-      fallback: true
+      fallback: true,
+      fallbackResult: fallbackResult
     };
   }
 };
@@ -343,6 +365,17 @@ const formatRefundMethod = (method) => {
 // Optional: Add contact to Acumbamail list for future communications
 export const addContactToAcumbamail = async (formData) => {
   try {
+    // For development/testing - simulate successful API response
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('🧪 Development mode: Simulating successful contact addition');
+      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
+      
+      return { 
+        success: true, 
+        result: { response: 'OK' } 
+      };
+    }
+    
     const contactData = {
       auth_token: ACUMBAMAIL_CONFIG.API_TOKEN,
       list_id: ACUMBAMAIL_CONFIG.LIST_ID,
@@ -384,6 +417,17 @@ export const addContactToAcumbamail = async (formData) => {
 // Alternative webhook method (fallback)
 export const sendRefundRequestWebhook = async (formData) => {
   try {
+    // For development/testing - simulate successful webhook
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('🧪 Development mode: Simulating successful webhook delivery');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+      
+      return {
+        success: true,
+        message: 'Refund request sent via webhook successfully (Simulated)'
+      };
+    }
+    
     // Zapier or Make.com webhook URL
     const webhookUrl = 'https://hooks.zapier.com/hooks/catch/your_webhook_id/';
     

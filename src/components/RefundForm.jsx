@@ -4,7 +4,7 @@ import FormField from './FormField';
 import RefundMethodSelector from './RefundMethodSelector';
 import DigitalSignature from './DigitalSignature';
 import TermsAgreement from './TermsAgreement';
-import { sendRefundRequestEmail, storeRefundRequestLocally, addContactToAcumbamail } from '../services/acumbamailService';
+import { sendRefundRequestEmail, storeRefundRequestLocally, sendRefundRequestWebhook } from '../services/emailService';
 
 const RefundForm = ({ onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -17,86 +17,83 @@ const RefundForm = ({ onSubmit }) => {
     signature: '',
     agreeToTerms: false
   });
-
+  
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
 
   const validateForm = () => {
     const newErrors = {};
-
+    
     if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!formData.bookingNumber.trim()) newErrors.bookingNumber = 'Booking number is required';
+    
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
+    
     if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
     if (!formData.refundReason.trim()) newErrors.refundReason = 'Refund reason is required';
     if (!formData.refundMethod) newErrors.refundMethod = 'Please select a refund method';
     if (!formData.signature.trim()) newErrors.signature = 'Digital signature is required';
     if (!formData.agreeToTerms) newErrors.agreeToTerms = 'You must agree to the terms and conditions';
-
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-
+    
     setIsSubmitting(true);
     setSubmitStatus(null);
-
+    
     try {
-      console.log('📧 Submitting refund request via Acumbamail:', formData);
-
-      // Attempt to send email via Acumbamail
+      console.log('📧 Submitting refund request via EmailJS:', formData);
+      
+      // Attempt to send email via EmailJS
       const emailResult = await sendRefundRequestEmail(formData);
       
       if (emailResult.success) {
-        console.log('✅ Acumbamail email sent successfully');
-        
-        // Optional: Add contact to Acumbamail list for future communications
-        addContactToAcumbamail(formData).catch(err => 
-          console.log('ℹ️ Contact not added to list (non-critical):', err)
-        );
+        console.log('✅ EmailJS email sent successfully');
         
         setSubmitStatus({
           type: 'success',
-          message: 'Your refund request has been sent to StarGaze Vacations successfully via Acumbamail!',
+          message: 'Your refund request has been sent to StarGaze Vacations successfully!',
           details: {
             messageId: emailResult.messageId,
-            service: 'Acumbamail'
+            service: 'EmailJS'
           }
         });
+        
+        onSubmit(formData);
+      } else if (emailResult.fallback && emailResult.fallbackResult?.success) {
+        console.log('⚠️ Using fallback method:', emailResult.fallbackResult);
+        
+        setSubmitStatus({
+          type: 'warning',
+          message: 'Request submitted but email delivery failed. Please contact StarGaze Vacations directly.',
+          details: emailResult.fallbackResult.manualInstructions
+        });
+        
         onSubmit(formData);
       } else {
-        console.log('❌ Acumbamail failed, using fallback');
-        
-        // Store locally as fallback
-        const fallbackResult = storeRefundRequestLocally(formData);
-        
-        if (fallbackResult.success) {
-          setSubmitStatus({
-            type: 'warning',
-            message: 'Request submitted but email delivery failed. Please contact StarGaze Vacations directly.',
-            details: fallbackResult.manualInstructions
-          });
-          onSubmit(formData);
-        } else {
-          throw new Error('Both Acumbamail and fallback methods failed');
-        }
+        throw new Error('Both EmailJS and fallback methods failed');
       }
-
     } catch (error) {
       console.error('❌ Complete submission failure:', error);
+      
+      // Last resort - store locally and show manual instructions
+      const localResult = storeRefundRequestLocally(formData);
+      
       setSubmitStatus({
         type: 'error',
         message: 'Failed to submit request. Please contact StarGaze Vacations directly.',
         contact: {
           email: 'info@stargazevacations.com',
           phone: '1-844-782-7429'
-        }
+        },
+        details: localResult.success ? localResult.manualInstructions : null
       });
     } finally {
       setIsSubmitting(false);
@@ -104,9 +101,16 @@ const RefundForm = ({ onSubmit }) => {
   };
 
   const updateFormData = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
     }
   };
 
@@ -119,28 +123,22 @@ const RefundForm = ({ onSubmit }) => {
       className="space-y-6"
     >
       {/* Service Information Banner */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-100">
+      <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
           <div>
-            <h3 className="font-medium text-purple-800">✉️ Email Service: Acumbamail</h3>
-            <p className="text-sm text-purple-600">Professional email delivery for your refund request</p>
+            <h3 className="font-medium text-blue-800">✉️ Email Service: EmailJS</h3>
+            <p className="text-sm text-blue-600">Reliable email delivery for your refund request</p>
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className="text-purple-800">📧</span>
-              <a 
-                href="mailto:info@stargazevacations.com" 
-                className="text-sm text-purple-600 hover:underline"
-              >
+              <span className="text-blue-800">📧</span>
+              <a href="mailto:info@stargazevacations.com" className="text-sm text-blue-600 hover:underline">
                 info@stargazevacations.com
               </a>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-purple-800">📞</span>
-              <a 
-                href="tel:18447827429" 
-                className="text-sm text-purple-600 hover:underline"
-              >
+              <span className="text-blue-800">📞</span>
+              <a href="tel:18447827429" className="text-sm text-blue-600 hover:underline">
                 1-844-782-7429
               </a>
             </div>
@@ -154,8 +152,8 @@ const RefundForm = ({ onSubmit }) => {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className={`p-4 rounded-lg border ${
-            submitStatus.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
+            submitStatus.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
               : submitStatus.type === 'warning'
               ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
               : 'bg-red-50 border-red-200 text-red-800'
@@ -199,6 +197,7 @@ const RefundForm = ({ onSubmit }) => {
           placeholder="Enter your full name"
           required
         />
+        
         <FormField
           label="Booking Number"
           type="text"
@@ -220,6 +219,7 @@ const RefundForm = ({ onSubmit }) => {
           placeholder="your.email@example.com"
           required
         />
+        
         <FormField
           label="Phone Number"
           type="tel"
@@ -266,28 +266,28 @@ const RefundForm = ({ onSubmit }) => {
         whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
         whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
         className={`w-full py-4 px-6 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 ${
-          isSubmitting 
-            ? 'bg-gray-400 cursor-not-allowed' 
-            : 'bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800'
+          isSubmitting
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800'
         } text-white`}
       >
         {isSubmitting ? (
           <div className="flex items-center justify-center gap-2">
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            Sending via Acumbamail...
+            Sending via EmailJS...
           </div>
         ) : (
           <div className="flex items-center justify-center gap-2">
-            <span>📧</span>
-            Submit Refund Request
+            <span>📧</span> Submit Refund Request
           </div>
         )}
       </motion.button>
 
       {/* Service Info */}
       <div className="text-center text-sm text-gray-500">
-        <p>✅ Secure email delivery powered by Acumbamail</p>
+        <p>✅ Secure email delivery powered by EmailJS</p>
         <p>🔒 Your information is encrypted and protected</p>
+        <p className="text-xs mt-1 text-blue-500">In development mode, emails are simulated for testing</p>
       </div>
     </motion.form>
   );

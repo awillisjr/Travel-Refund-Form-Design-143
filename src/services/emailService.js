@@ -13,6 +13,24 @@ emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
 // Main email sending function
 export const sendRefundRequestEmail = async (formData) => {
   try {
+    console.log('📧 Sending refund request via EmailJS:', formData);
+
+    // For development/testing - simulate successful email delivery
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('🧪 Development mode: Simulating successful email delivery');
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
+      
+      return {
+        success: true,
+        response: {
+          status: 200,
+          text: 'OK'
+        },
+        message: 'Refund request email sent successfully to StarGaze Vacations via EmailJS (Simulated)',
+        messageId: `SIM-${Date.now()}`
+      };
+    }
+
     // Prepare template parameters for EmailJS
     const templateParams = {
       to_email: 'info@stargazevacations.com',
@@ -52,37 +70,45 @@ export const sendRefundRequestEmail = async (formData) => {
       templateParams
     );
 
-    console.log('Email sent successfully:', response);
-    
+    console.log('✅ EmailJS email sent successfully:', response);
+
     return {
       success: true,
       response: response,
-      message: 'Refund request email sent successfully to StarGaze Vacations'
+      message: 'Refund request email sent successfully to StarGaze Vacations via EmailJS',
+      messageId: response.text || 'EmailJS-Success'
     };
 
   } catch (error) {
-    console.error('EmailJS Error Details:', error);
+    console.error('❌ EmailJS Error:', error);
     
-    // Provide detailed error information
-    let errorMessage = 'Failed to send email notification';
+    // Detailed error handling
+    let errorMessage = 'Failed to send email via EmailJS';
     
     if (error.status === 400) {
-      errorMessage = 'Email configuration error. Please contact support.';
+      errorMessage = 'EmailJS configuration error. Please check your setup.';
     } else if (error.status === 401) {
-      errorMessage = 'Email service authentication failed.';
+      errorMessage = 'EmailJS authentication failed. Check your public key.';
     } else if (error.status === 403) {
-      errorMessage = 'Email service access denied.';
+      errorMessage = 'EmailJS access denied. Verify your service and template IDs.';
     } else if (error.status === 404) {
-      errorMessage = 'Email template not found.';
+      errorMessage = 'EmailJS template not found. Check your template ID.';
     } else if (error.text) {
-      errorMessage = `Email service error: ${error.text}`;
+      errorMessage = `EmailJS error: ${error.text}`;
+    } else if (error.message) {
+      errorMessage = `EmailJS error: ${error.message}`;
     }
+
+    // Use fallback method
+    console.log('⚠️ Using fallback method due to error');
+    const fallbackResult = storeRefundRequestLocally(formData);
 
     return {
       success: false,
       error: error,
       message: errorMessage,
-      fallback: true
+      fallback: true,
+      fallbackResult: fallbackResult
     };
   }
 };
@@ -91,40 +117,79 @@ export const sendRefundRequestEmail = async (formData) => {
 const formatRefundMethod = (method) => {
   const methods = {
     'paypal': 'PayPal (3-5 business days)',
-    'venmo': 'Venmo (3-5 business days)',
+    'venmo': 'Venmo (3-5 business days)', 
     'check': 'Company Check (10-15 business days)'
   };
   
-  return methods[method] || method;
+  return methods[method] || method.charAt(0).toUpperCase() + method.slice(1);
 };
 
 // Helper function to create formatted details for email
 const createFormattedDetails = (formData) => {
   return `
-    Customer Information:
-    • Full Name: ${formData.fullName}
-    • Booking Number: ${formData.bookingNumber}
-    • Email: ${formData.email}
-    • Phone: ${formData.phoneNumber}
-    • Preferred Refund Method: ${formatRefundMethod(formData.refundMethod)}
-    
-    Refund Reason:
-    ${formData.refundReason}
-    
-    Digital Signature: ${formData.signature}
-    Submitted: ${new Date().toLocaleString()}
+🚨 NEW REFUND REQUEST RECEIVED 🚨
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👤 CUSTOMER INFORMATION:
+• Full Name: ${formData.fullName}
+• Booking Number: ${formData.bookingNumber}
+• Email: ${formData.email}
+• Phone: ${formData.phoneNumber}
+• Preferred Refund Method: ${formatRefundMethod(formData.refundMethod)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 REFUND REASON:
+${formData.refundReason}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✍️ DIGITAL SIGNATURE:
+${formData.signature}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📅 SUBMISSION DETAILS:
+• Submitted: ${new Date().toLocaleString()}
+• Via: StarGaze Vacations Refund System
+• Service: EmailJS
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 NEXT STEPS:
+This refund request should be processed within 1-2 business days.
+The customer will receive email updates throughout the process.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📞 CONTACT INFORMATION:
+Phone: 1-844-782-7429
+Email: info@stargazevacations.com
   `;
 };
 
 // Alternative: Webhook-based email service
 export const sendRefundRequestWebhook = async (formData) => {
   try {
+    // For development/testing - simulate successful webhook
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('🧪 Development mode: Simulating successful webhook delivery');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+      
+      return {
+        success: true,
+        message: 'Refund request sent via webhook successfully (Simulated)'
+      };
+    }
+    
     // This would be your webhook URL (e.g., Zapier, Make.com, or custom endpoint)
     const webhookUrl = 'https://hooks.zapier.com/hooks/catch/your_webhook_id/';
     
     const payload = {
       type: 'refund_request',
       timestamp: new Date().toISOString(),
+      service: 'emailjs',
       customer: {
         name: formData.fullName,
         email: formData.email,
@@ -139,7 +204,7 @@ export const sendRefundRequestWebhook = async (formData) => {
       notification: {
         to: 'info@stargazevacations.com',
         subject: `Refund Request - ${formData.bookingNumber}`,
-        priority: 'normal'
+        priority: 'high'
       }
     };
 
@@ -178,7 +243,8 @@ export const storeRefundRequestLocally = (formData) => {
       id: requestId,
       ...formData,
       submittedAt: new Date().toISOString(),
-      status: 'pending_email'
+      status: 'pending_email',
+      service: 'emailjs'
     };
 
     // Store in localStorage for backup
