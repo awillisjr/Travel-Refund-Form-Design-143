@@ -4,7 +4,7 @@ import emailjs from '@emailjs/browser';
 const EMAILJS_CONFIG = {
   SERVICE_ID: 'service_stargaze', // Your EmailJS service ID
   TEMPLATE_ID: 'template_refund', // Your EmailJS template ID
-  PUBLIC_KEY: 'your_public_key_here' // Your EmailJS public key
+  PUBLIC_KEY: 'pcTrfIp223awqXgje' // Your EmailJS public key
 };
 
 // Initialize EmailJS
